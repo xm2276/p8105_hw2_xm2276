@@ -1,30 +1,177 @@
 ---
-title: "p8105_hw2_YOURUNI.Rmd"
+title: "p8105_hw2_xm2276.Rmd"
 author: "XIAO MA"
 date: "10/8/2021"
 output: github_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(readxl)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+## Problem 0
+### import the data
+```{r}
+trash_df = read_excel("data/Trash-Wheel-Collection-Totals-7-2020-2.xlsx")
 ```
 
-## Including Plots
+## problem 1
+cleaning data
+reading the sheet
+```{r}
+trash_df = read_excel("data/Trash-Wheel-Collection-Totals-7-2020-2.xlsx",
+                      sheet = "Mr. Trash Wheel") %>%
+                      janitor::clean_names() %>%
+                      drop_na(dumpster) %>%
+                      mutate(round(sports_balls, digits = 0))
 
-You can also embed plots, for example:
+Prec2018 = read_excel("data/Trash-Wheel-Collection-Totals-7-2020-2.xlsx",
+                      sheet = "2018 Precipitation",
+                      range = "A2:B14") %>%
+                      mutate(Year = "2018")
+Prec2018
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+Prec2019 = read_excel("data/Trash-Wheel-Collection-Totals-7-2020-2.xlsx",
+                      sheet = "2019 Precipitation",
+                       range = "A2:B14") %>%
+                      mutate(Year = "2019")
+Prec2019
+Prec_20182019 = bind_rows(Prec2018,Prec2019) %>%
+                mutate(month.name[Month]) %>%
+  relocate(Year)
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+The **number of observations of trash_df** contains 454 dumpsters through 9 years.
+There are 17 numbers of variables of trash_df
+The**key variables** are `r ls(trash_df)`
+There are 12 number of observations of Prec2018 
+The 3 numbers of variables of Prec2018
+The**key variables** is total_amount of prep
+There are 12 number of observations of Prec2019
+There are 3 numbers of variables of Prec2019
+The**key variables** are `r ls(Prec2019)`
+
+The total precipitation in 2018 is 70.33.
+The median number of sports balls in a dumpster in 2019 is 3.55 inch
+
+The total precipitation in 2018 is 70.33.
+The median number of sports balls in a dumpster in 2019 is 4.35 inch
+
+
+
+
+## Problem 2
+```{r}
+pols_month_df = read_csv("data/fivethirtyeight_datasets/pols-month.csv")
+
+pols_month_df = pols_month_df %>%
+  separate(mon,into = c("year","month","day")) %>%
+  mutate(
+    year = as.integer(year),
+    month = as.integer(month),
+    day = as.integer(day)) %>%
+mutate(month = month.name[month]) %>%
+mutate(year = as.character(year)) %>%
+drop_na(prez_gop) %>%
+mutate(president = ifelse(prez_gop == 1, "gop","dem")) %>%
+select(-prez_dem,-prez_gop,-day)
+pols_month_df
+```
+
+
+Secondly,
+```{r}
+snp_df = read_csv("data/fivethirtyeight_datasets/snp.csv") %>%
+      separate(date, into = c("month","day","year"), sep = "/") %>%
+      mutate(year = as.numeric(year) + 2000) %>%
+      mutate(year = ifelse(year >= "2050", year - 100, year)) %>%
+      mutate(year = as.character(year)) %>%
+      mutate(month = as.numeric(month)) %>%
+      arrange(year, month) %>%
+      mutate(month = month.name[month]) %>%
+      mutate(year, month) %>%
+      select(-day)
+      
+```
+
+Thirdly,
+```{r}
+unemploy_df = read_csv("data/fivethirtyeight_datasets/unemployment.csv") %>% 
+  pivot_longer(Jan:Dec,
+  names_to = "month",values_to = "unemployment") %>%
+  mutate(month = match(month, month.abb)) %>%
+  mutate(month = month.name[month]) %>%
+  janitor::clean_names() %>%
+  mutate(year = as.character(year))
+
+#join the data set
+pols_snp = left_join(pols_month_df, snp_df, by = c("year","month"))
+pols_snp_unemploy = left_join(pols_snp, unemploy_df, by = c("year", "month"))
+
+```
+Write a short paragraph about these datasets. Explain briefly what each dataset contained, and describe the resulting dataset (e.g. give the dimension, range of years, and names of key variables).
+
+**The dimension of observations** of pols_month_df is `r nrow(pols_month_df)` and `r ncol(pols_month_df)`
+**The range of the years** of pols_month_df is `r range(as.numeric(pols_month_df$year))`
+**key variables** are `ls(pols_month_df)`
+
+For the second dataset 
+**The dimension of observations** of snp_df is `r nrow(snp_df)` and `ncol(snp_df)`
+**The range of the years** of snp_df is `r range(as.numeric(snp_df$year))`
+**key variables** are `ls(snp_df)`
+
+For the third dataset
+**The dimension of observations** of unemploy_df is `r nrow(unemploy_df)` and `r ncol(unemploy_df)`
+**The range of the years** of unemploy_df is `r range(as.numeric(unemploy_df$year))`
+**key variables** are `ls(unemploy_df)`
+
+
+
+##problem3
+```{r}
+pop_names = 
+  read_csv("data/Popular_Baby_Names.csv") %>%
+  janitor::clean_names() %>%
+  mutate(gender = tolower(gender)) %>%
+  mutate(ethnicity = gsub(" ", "_",ethnicity)) %>%
+  mutate(ethnicity = tolower(ethnicity)) %>%
+  mutate(childs_first_name = tolower(childs_first_name)) %>%
+  distinct( )
+pop_names
+
+
+##olivia
+olivia = 
+  filter(pop_names, childs_first_name == "olivia", gender == "female") %>%
+  select(rank, year_of_birth, ethnicity) %>%
+  arrange(year_of_birth)
+
+##male names
+
+pop_male_names = 
+  filter(pop_names,gender == "male", rank == 1 ) %>%
+  select(rank, year_of_birth, ethnicity) %>%
+  arrange(year_of_birth)
+
+name_2016 = filter(pop_names,year_of_birth == "2016", gender == "male", ethnicity == "white_non_hispanic")
+
+ggplot(name_2016) + geom_point(aes(rank,count),color = "green")
+ggsave("2016names.pdf")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
